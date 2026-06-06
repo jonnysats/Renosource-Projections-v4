@@ -277,7 +277,17 @@
       <div class="logo-text">RENO <span>SOURCE</span></div>
       <div class="logo-subtitle">Financial Projections &nbsp;·&nbsp; 24-Month Model &nbsp;·&nbsp; Confidential</div>
     </div>
-    <div class="version-badge">PRO FORMA — V4.0 · MONTH 1 + 2 ACTUALS</div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="version-badge" id="active-version-badge">PRO FORMA — V4.0 · MONTH 1 + 2 ACTUALS</div>
+      <div style="position:relative;">
+        <select id="version-select" onchange="loadVersion(this.value)" style="background:rgba(11,31,24,0.8);border:1px solid rgba(253,105,5,0.4);color:var(--orange);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.8px;padding:6px 28px 6px 12px;border-radius:20px;cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;">
+          <option value="v4">V4.0 — June 2026 · Month 1+2 Actuals</option>
+          <option value="v3">V3.1 — March 2026 · Month 1 Actuals</option>
+          <option value="v2">V2.0 — February 2026 · Pre-Launch</option>
+        </select>
+        <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--orange);font-size:9px;pointer-events:none;">▼</span>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -318,9 +328,9 @@
     <div class="assumptions-title">Key Assumptions</div>
     <div class="assumptions-sub">Revenue targets based on management projections. Marketing spend adjusts to CPC curve reality.</div>
     <div class="assumptions-grid">
-      <div class="assumption-chip"><div class="chip-label">Gross Margin</div><div class="chip-value">45–50% Y1 / 45% Y2</div></div>
-      <div class="assumption-chip"><div class="chip-label">AOV Range</div><div class="chip-value">$1,420 → $1,750</div></div>
-      <div class="assumption-chip"><div class="chip-label">Blended CPC</div><div class="chip-value">$0.70 → $1.80</div></div>
+      <div class="assumption-chip"><div class="chip-label">Gross Margin</div><div class="chip-value" id="chip-gm">45–50% Y1 / 45% Y2</div></div>
+      <div class="assumption-chip"><div class="chip-label">AOV Range</div><div class="chip-value" id="chip-aov">$1,420 → $1,750</div></div>
+      <div class="assumption-chip"><div class="chip-label">Blended CPC</div><div class="chip-value" id="chip-cpc">$0.70 → $1.80</div></div>
     </div>
   </div>
 
@@ -472,6 +482,111 @@
 </div>
 
 <script>
+/* ═══════════════════════════════════════════════════════
+   VERSION REGISTRY
+═══════════════════════════════════════════════════════ */
+const VERSIONS = {
+  v4: {
+    badge: 'PRO FORMA — V4.0 · MONTH 1 + 2 ACTUALS',
+    label: 'V4.0 — June 2026 · Month 1+2 Actuals',
+    tableSubtitle: 'M1/M2 Proj = original pre-launch model · M1/M2 Actual = real results · M3–24 = forward projections',
+    disclaimer: '<strong>⚠ Actuals Note:</strong> M1 (April 2026) and M2 (May 2026) figures are unaudited and based on data pulls across Shopify, Triple Whale, and management extrapolation. Numbers are directionally accurate but subject to small errors and have not been finalized or reconciled. All other months (M3–M24) are forward-looking projections. <strong>CapEx Note:</strong> Equipment purchases are classified as capital expenditures and excluded from operating expenses. EBITDA reflects this treatment.',
+    chips: { gm: '45–50% Y1 / 45% Y2', aov: '$1,420 → $1,750', cpc: '$0.70 → $1.80' },
+    // M1 Proj (original pre-launch)
+    p1: { totalSales:37167, revenue:29750, cogs:16362, grossMargin:13388, gmPct:0.45, payroll:57898, rent:26000, ccVar:7537, other:9150, nonMktgOpex:113052, cpc:5.00, marketing:10000, net:-109664 },
+    // M2 Proj (v3 M2 projection)
+    p2: { totalSales:178400, revenue:141337, cogs:77736, grossMargin:63602, gmPct:0.45, payroll:70000, rent:32000, ccVar:3906, other:9750, nonMktgOpex:127194, cpc:0.75, marketing:60000, net:-123592 },
+    actualsCount: 2,
+    raw: {
+      totalSales:[89473,372834,486738,681548,901692,1100207,1457716,1766541,2022900,2503712,2803246,3466387,2593471,2953012,3543615,4047644,4857173,5440034,6528041,7433900,8920680,9787260,11886671,13867783],
+      revenue:[71003,307201,385618,539956,714365,871639,1154876,1399542,1602642,1983566,2220872,2746245,2106546,2398584,2878301,3287699,3945239,4418668,5302401,6038185,7245822,7949702,9654948,11264106],
+      grossMargin:[34365,154215,181240,253779,335752,400954,531243,643789,737215,892605,999392,1235810,947946,1079363,1295235,1479465,1775358,1988400,2386081,2717183,3260620,3577366,4344727,5068848],
+      net:[-110117,-79547,-76362,-38167,-5399,10228,80047,113636,127140,179427,172816,270444,144337,174307,243968,193184,289221,288394,280073,305766,453620,339492,552820,654446],
+      marketing:[48750,112077,115000,138000,165600,198720,238464,286157,343388,412066,494479,593375,445805,534966,641959,770351,924421,1109305,1331167,1597400,1916880,2300256,2760307,3312368],
+      nonMktgOpex:[95732,121685,142000,158000,182600,196720,212464,243000,266000,303000,327000,368000,357804,369590,409308,515929,561715,590201,774841,814017,890120,937618,1031600,1102033],
+      cpc:[0.70,0.86,0.80,0.80,0.80,0.85,0.85,0.90,1.00,1.00,1.10,1.10,1.20,1.30,1.30,1.40,1.40,1.50,1.50,1.60,1.60,1.75,1.75,1.80],
+      cogs:[36637,152986,204377,286177,378614,470685,623633,755753,865427,1090961,1221479,1510435,1158601,1319221,1583066,1808235,2169881,2430267,2916321,3321002,3985202,4372336,5310222,6195259],
+      payroll:[57898,70000,75000,80000,95000,105000,115000,125000,140000,160000,180000,200000,200000,200000,220000,270000,290000,300000,400000,410000,440000,460000,490000,500000],
+      rent:[26000,28000,40000,40000,40000,40000,40000,50000,50000,50000,50000,50000,60000,60000,60000,100000,100000,100000,150000,150000,150000,150000,150000,150000],
+      ccVar:[2684,11185,14602,20446,27051,33006,43731,52996,60687,75111,84097,103992,77804,88590,106308,121429,145715,163201,195841,223017,267620,293618,356600,416033],
+      other:[9150,12500,13000,13500,13500,14000,14000,16000,16000,16000,18000,18000,20000,21500,23000,24500,26000,27500,29000,31000,32500,34000,35000,36000],
+      varRate:[0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03]
+    }
+  },
+  v3: {
+    badge: 'PRO FORMA — V3.1 · MONTH 1 ACTUALS',
+    label: 'V3.1 — March 2026 · Month 1 Actuals',
+    tableSubtitle: 'M1 Proj = original pre-launch model · M1 Actual = real results · M2–24 = forward projections',
+    disclaimer: '<strong>⚠ M1 Actuals Note:</strong> Month 1 figures are unaudited and based on data pulls across Shopify, Triple Whale, and manual extrapolation. Numbers are directionally accurate but subject to small errors and have not been finalized or reconciled. All other months are forward-looking projections. <strong>CapEx Note:</strong> Equipment purchases are classified as capital expenditures and excluded from operating expenses. EBITDA reflects this treatment.',
+    chips: { gm: '45% Y1 / 40% Y2', aov: '$1,485 → $2,100', cpc: '$0.70 → $1.80' },
+    p1: { totalSales:37167, revenue:29750, cogs:16362, grossMargin:13388, gmPct:0.45, payroll:57898, rent:26000, ccVar:7537, other:9150, nonMktgOpex:113052, cpc:5.00, marketing:10000, net:-109664 },
+    p2: null,
+    actualsCount: 1,
+    raw: {
+      totalSales:[89473,178400,336960,474660,681372,868716,1150482,1401919,1622106,2023924,2293757,2825120,3142925,3481394,4224585,4707395,5774331,6467251,7929316,9015326,10818391,11994191,14542875,17141507],
+      revenue:[71003,141337,266957,376049,539817,688241,911469,1110671,1285113,1603454,1817229,2238202,2552841,2827762,3431419,3823582,4690201,5253025,6440587,7322698,8787238,9742282,11812450,13923189],
+      grossMargin:[31951,63602,120130,169222,242918,309708,410161,499802,578301,721554,817753,1007191,1021136,1131105,1372568,1529433,1876080,2101210,2576235,2929079,3514895,3896913,4724980,5569276],
+      net:[-114703,-123592,-105160,-90626,-62309,-40359,1612,15900,28635,69832,76528,145201,32881,13272,56640,-77988,5260,-43521,9738,-27460,63149,-80533,51007,96433],
+      marketing:[48750,60000,72000,86400,103680,124416,149299,179159,214991,257989,309587,371504,445805,534966,641959,770351,924421,1109305,1331167,1597400,1916880,2300256,2760307,3312368],
+      nonMktgOpex:[97904,127194,153290,173448,201547,225651,259250,304743,334675,393733,431638,490486,542450,582867,673969,837070,946399,1035426,1235330,1359139,1534866,1677190,1913666,2160475],
+      cpc:[0.70,0.75,0.75,0.8,0.8,0.85,0.85,0.9,1.0,1.0,1.1,1.1,1.2,1.3,1.3,1.4,1.4,1.5,1.5,1.6,1.6,1.75,1.75,1.8],
+      cogs:[39052,77736,146826,206827,296899,378532,501308,610869,706812,881900,999476,1231011,1531705,1696657,2058852,2294149,2814120,3151815,3864352,4393619,5272343,5845369,7087470,8353913],
+      payroll:[57898,70000,85000,93500,102850,113135,124449,136893,150583,180000,198000,217800,239580,263538,289892,400000,440000,484000,532400,585640,644204,708624,779487,857436],
+      rent:[26000,32000,32000,32000,37000,37000,37000,50000,50000,50000,50000,50000,60000,60000,60000,100000,100000,100000,150000,150000,150000,150000,150000,150000],
+      ccVar:[1924,3906,8078,11567,16767,21517,28586,34981,40633,50850,57794,70290,78364,86803,105553,117616,144854,162236,199675,227442,272931,303141,368205,434748],
+      other:[9150,9750,9150,10650,9150,9150,10650,12150,12150,12150,12150,12000,22000,23000,25000,25500,25500,25500,32000,32000,32000,33500,33500,33500],
+      varRate:[0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03]
+    }
+  },
+  v2: {
+    badge: 'PRO FORMA — V2.0 · PRE-LAUNCH',
+    label: 'V2.0 — February 2026 · Pre-Launch',
+    tableSubtitle: 'All months are forward-looking projections based on the pre-launch financial model',
+    disclaimer: '<strong>⚠ Forward-Looking Statements:</strong> All figures in this version are pre-launch projections only. No actual operating results are reflected. This model was published February 2026 prior to launch.',
+    chips: { gm: '45% Y1 / 40% Y2', aov: '$1,485 → $2,100', cpc: '$5.00 → $1.80' },
+    p1: null,
+    p2: null,
+    actualsCount: 0,
+    raw: {
+      totalSales:[37167,88400,180000,257000,375000,483000,644000,784000,908000,1132000,1283000,1580000,1759000,1949000,2365000,2636000,3234000,3620000,4440000,5048000,6062000,6716000,8142000,9600000],
+      revenue:[29750,70750,144000,205750,300000,386750,515500,627250,726500,905750,1026500,1264500,1428000,1583000,1920000,2140000,2628000,2940000,3607000,4101000,4925000,5454000,6613000,7800000],
+      grossMargin:[13388,31837,64800,92588,135000,174038,232000,282262,326925,407588,461925,569025,571200,633200,768000,856000,1051200,1176000,1442800,1640400,1970000,2181600,2645200,3120000],
+      net:[-109664,-100000,-80000,-60000,-35000,-15000,5000,18000,30000,60000,65000,120000,25000,10000,40000,-90000,-10000,-50000,5000,-35000,50000,-95000,40000,80000],
+      marketing:[10000,20000,35000,50000,65000,80000,100000,120000,145000,175000,210000,252000,302000,363000,435000,522000,627000,752000,902000,1083000,1299000,1559000,1871000,2245000],
+      nonMktgOpex:[113052,131000,149800,167300,185300,202000,222000,244000,264000,294000,325000,350000,385000,422000,460000,510000,560000,624000,690000,750000,826000,900000,986000,1080000],
+      cpc:[5.00,4.50,4.00,3.50,3.00,2.75,2.50,2.50,2.50,2.50,2.60,2.75,2.75,3.00,3.00,3.25,3.25,3.50,3.50,3.75,3.75,4.00,4.25,4.50],
+      cogs:[16362,38912,79200,113162,165000,212712,283500,345000,399575,498162,564575,695475,856800,949800,1152000,1284000,1576800,1764000,2164200,2460600,2955000,3272400,3967800,4680000],
+      payroll:[57898,65000,72000,75000,80000,85000,90000,100000,110000,130000,150000,170000,190000,210000,230000,260000,290000,320000,360000,400000,440000,490000,540000,590000],
+      rent:[26000,28000,28000,30000,30000,32000,32000,35000,35000,38000,38000,40000,42000,44000,46000,50000,52000,55000,60000,65000,70000,75000,80000,85000],
+      ccVar:[7537,15000,28000,40000,55000,70000,90000,108000,126000,157000,178000,219000,248000,275000,333000,371000,456000,510000,626000,712000,855000,947000,1148000,1354000],
+      other:[9150,9500,9800,10000,10300,10500,10800,11000,11200,11500,11800,12000,13000,14000,14500,15000,15500,16000,17000,18000,18500,19000,20000,21000],
+      varRate:[0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.03]
+    }
+  }
+};
+
+let activeVersionKey = 'v4';
+
+function loadVersion(key) {
+  activeVersionKey = key;
+  const v = VERSIONS[key];
+  // Update badge
+  document.getElementById('active-version-badge').textContent = v.badge;
+  // Update table subtitle
+  document.querySelector('.table-hdr-sub').textContent = v.tableSubtitle;
+  // Update disclaimer
+  document.querySelector('.pnl-disclaimer').innerHTML = v.disclaimer;
+  // Update assumption chips
+  document.getElementById('chip-gm').textContent  = v.chips.gm;
+  document.getElementById('chip-aov').textContent = v.chips.aov;
+  document.getElementById('chip-cpc').textContent = v.chips.cpc;
+  // Swap RAW data
+  Object.assign(RAW, v.raw);
+  // Reset sliders
+  resetSliders();
+  // Rebuild table (resetSliders calls updateAll which calls buildPnlTable)
+}
+
 /* ═══════════════════════════════════════════════════════
    STATIC PROJ COLUMNS (original pre-launch — never mutate)
 ═══════════════════════════════════════════════════════ */
@@ -714,55 +829,64 @@ function updateUnitEcon() {
 ═══════════════════════════════════════════════════════ */
 function buildPnlTable() {
   const a = computeActive();
+  const v = VERSIONS[activeVersionKey];
   const tbl = document.getElementById('pnl-tbl');
-  // Headers: Metric | M1 Proj | M2 Proj | M1 Actual | M2 Actual | M3…M24
-  const hdrs = ['Metric','M1 Proj','M2 Proj','M1','M2','M3','M4','M5','M6','M7','M8','M9','M10','M11','M12',
-                'M13','M14','M15','M16','M17','M18','M19','M20','M21','M22','M23','M24'];
+  const n = v.actualsCount; // 0=all proj, 1=M1 actual, 2=M1+M2 actual
 
-  const f = v => {
-    if(typeof v !== 'number') return v;
-    const abs=Math.abs(Math.round(v));
-    const s=v<0?'<span class="negative">−$':'$';
-    const e=v<0?'</span>':'';
+  // Build column headers dynamically based on version
+  const hdrs = ['Metric'];
+  if (v.p1) hdrs.push('M1 Proj');
+  if (v.p2) hdrs.push('M2 Proj');
+  for (let i=1; i<=24; i++) hdrs.push(`M${i}`);
+
+  const f = val => {
+    if(typeof val !== 'number') return val;
+    const abs=Math.abs(Math.round(val));
+    const s=val<0?'<span class="negative">−$':'$';
+    const e=val<0?'</span>':'';
     return s+abs.toLocaleString()+e;
   };
-  const fp = v => `${(v*100).toFixed(1)}%`;
-  const fc = v => `$${v.toFixed(2)}`;
+  const fp = val => `${(val*100).toFixed(1)}%`;
+  const fc = val => `$${val.toFixed(2)}`;
 
-  // Computed nonMktgOpex = payroll+rent+ccVar+other for each month
   const nonMktgArr = RAW.payroll.map((p,i) => p + RAW.rent[i] + RAW.ccVar[i] + RAW.other[i]);
-  const M1_nonMktg = M1_PROJ.payroll + M1_PROJ.rent + M1_PROJ.ccVar + M1_PROJ.other;
-  const M2_nonMktg = M2_PROJ.payroll + M2_PROJ.rent + M2_PROJ.ccVar + M2_PROJ.other;
+  const p1NonMktg = v.p1 ? v.p1.payroll+v.p1.rent+v.p1.ccVar+v.p1.other : 0;
+  const p2NonMktg = v.p2 ? v.p2.payroll+v.p2.rent+v.p2.ccVar+v.p2.other : 0;
 
-  // rows: lbl, m1proj, m2proj, data[24]
   const rows = [
     {sec:'Revenue'},
-    {lbl:'Total Sales',    p1:M1_PROJ.totalSales,  p2:M2_PROJ.totalSales,  data:a.totalSales, cls:'tr-totalsales'},
-    {lbl:'Net Revenue',    p1:M1_PROJ.revenue,      p2:M2_PROJ.revenue,     data:a.revenue,    cls:'tr-revenue'},
-    {lbl:'COGS',           p1:M1_PROJ.cogs,         p2:M2_PROJ.cogs,        data:RAW.cogs},
-    {lbl:'Gross Profit',   p1:M1_PROJ.grossMargin,  p2:M2_PROJ.grossMargin, data:a.grossMargin, cls:'tr-gm'},
-    {lbl:'Gross Margin %', p1:M1_PROJ.gmPct,        p2:M2_PROJ.gmPct,       data:a.grossMargin.map((v,i)=>v/a.revenue[i]), fmt:fp},
+    {lbl:'Total Sales',         p1v:'totalSales',  data:a.totalSales,  cls:'tr-totalsales'},
+    {lbl:'Net Revenue',         p1v:'revenue',     data:a.revenue,     cls:'tr-revenue'},
+    {lbl:'COGS',                p1v:'cogs',        data:RAW.cogs},
+    {lbl:'Gross Profit',        p1v:'grossMargin', data:a.grossMargin, cls:'tr-gm'},
+    {lbl:'Gross Margin %',      p1v:'gmPct',       data:a.grossMargin.map((val,i)=>val/a.revenue[i]), fmt:fp},
     {sec:'Operating Expenses'},
-    {lbl:'Payroll',        p1:M1_PROJ.payroll,      p2:M2_PROJ.payroll,     data:RAW.payroll},
-    {lbl:'Rent',           p1:M1_PROJ.rent,         p2:M2_PROJ.rent,        data:RAW.rent},
-    {lbl:'CC & Variable',  p1:M1_PROJ.ccVar,        p2:M2_PROJ.ccVar,       data:RAW.ccVar},
-    {lbl:'Other',          p1:M1_PROJ.other,        p2:M2_PROJ.other,       data:RAW.other},
-    {lbl:'Non-Mktg OpEx Total', p1:M1_nonMktg,      p2:M2_nonMktg,          data:nonMktgArr},
+    {lbl:'Payroll',             p1v:'payroll',     data:RAW.payroll},
+    {lbl:'Rent',                p1v:'rent',        data:RAW.rent},
+    {lbl:'CC & Variable',       p1v:'ccVar',       data:RAW.ccVar},
+    {lbl:'Other',               p1v:'other',       data:RAW.other},
+    {lbl:'Non-Mktg OpEx Total', p1nMktg:p1NonMktg, p2nMktg:p2NonMktg, data:nonMktgArr},
     {sec:'Marketing'},
-    {lbl:'Blended CPC',    p1:M1_PROJ.cpc,          p2:M2_PROJ.cpc,         data:RAW.cpc,      fmt:fc, cls:'tr-mktg2'},
-    {lbl:'Marketing Spend',p1:M1_PROJ.marketing,    p2:M2_PROJ.marketing,   data:a.marketing,  cls:'tr-mktg2'},
+    {lbl:'Blended CPC',         p1v:'cpc',         data:RAW.cpc,       fmt:fc, cls:'tr-mktg2'},
+    {lbl:'Marketing Spend',     p1v:'marketing',   data:a.marketing,   cls:'tr-mktg2'},
     {sec:'EBITDA & Cash'},
-    {lbl:'EBITDA',         p1:M1_PROJ.net,          p2:M2_PROJ.net,         data:a.net,        cls:'tr-net'},
+    {lbl:'EBITDA',              p1v:'net',         data:a.net,         cls:'tr-net'},
   ];
 
   const totalCols = hdrs.length;
   let html = '<thead><tr>';
   hdrs.forEach((h,i) => {
-    if(i===1)      html += `<th class="th-proj">${h}<span class="proj-badge">Proj</span></th>`;
-    else if(i===2) html += `<th class="th-proj">${h}<span class="proj-badge">Proj</span></th>`;
-    else if(i===3) html += `<th class="th-actual">${h}<span class="actual-badge">Actual</span></th>`;
-    else if(i===4) html += `<th class="th-actual">${h}<span class="actual-badge">Actual</span></th>`;
-    else           html += `<th>${h}</th>`;
+    // Proj cols come right after Metric
+    const projOffset = 1;
+    const projCount  = (v.p1?1:0) + (v.p2?1:0);
+    if (i >= projOffset && i < projOffset+projCount) {
+      html += `<th class="th-proj">${h}<span class="proj-badge">Proj</span></th>`;
+    } else if (i > projOffset+projCount-1 && i <= projOffset+projCount-1+n) {
+      // actual columns
+      html += `<th class="th-actual">${h}<span class="actual-badge">Actual</span></th>`;
+    } else {
+      html += `<th>${h}</th>`;
+    }
   });
   html += '</tr></thead><tbody>';
 
@@ -773,14 +897,13 @@ function buildPnlTable() {
     }
     const fmt = row.fmt || f;
     html += `<tr class="${row.cls||''}"><td>${row.lbl}</td>`;
-    // M1 Proj
-    html += `<td class="td-proj">${fmt(row.p1)}</td>`;
-    // M2 Proj
-    html += `<td class="td-proj">${fmt(row.p2)}</td>`;
-    // M1 Actual (idx 0) + M2 Actual (idx 1) + M3-M24 (idx 2-23)
-    row.data.forEach((v,i) => {
-      const cls = (i===0||i===1) ? 'td-actual' : '';
-      html += `<td class="${cls}">` + fmt(v) + '</td>';
+    // Proj cols
+    if (v.p1) html += `<td class="td-proj">${fmt(row.p1nMktg !== undefined ? p1NonMktg : (v.p1[row.p1v]??0))}</td>`;
+    if (v.p2) html += `<td class="td-proj">${fmt(row.p1nMktg !== undefined ? p2NonMktg : (v.p2[row.p1v]??0))}</td>`;
+    // Data cols
+    row.data.forEach((val,i) => {
+      const isActual = i < n;
+      html += `<td class="${isActual?'td-actual':''}">` + fmt(val) + '</td>';
     });
     html += '</tr>';
   });
