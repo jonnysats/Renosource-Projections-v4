@@ -147,6 +147,8 @@
     .tr-mktg2 td { color:var(--orange); font-weight:600; }
     .tr-section td { background:rgba(42,107,88,0.15); color:var(--muted); font-weight:700; font-size:10px; letter-spacing:0.8px; text-transform:uppercase; padding:5px 10px 5px 20px; }
     .tr-section td:first-child { background:#1d5040; }
+    .tr-nonmktg-total td { background:rgba(42,107,88,0.07); color:var(--teal); font-weight:700; font-size:12px; border-left:2px solid var(--teal); }
+    .tr-nonmktg-total td:first-child { border-left:2px solid var(--teal); }
     .th-actual { background:rgba(253,105,5,0.18) !important; color:var(--orange) !important; }
     .td-actual { background:rgba(253,105,5,0.07) !important; }
     .th-proj { background:rgba(56,189,248,0.12) !important; color:var(--blue) !important; }
@@ -886,7 +888,7 @@ function buildPnlTable() {
     {lbl:'Rent',                p1v:'rent',        data:RAW.rent},
     {lbl:'CC & Variable',       p1v:'ccVar',       data:RAW.ccVar},
     {lbl:'Other',               p1v:'other',       data:RAW.other},
-    {lbl:'Non-Mktg OpEx Total', isMktg:true,       data:nonMktgArr},
+    {lbl:'Non-Mktg OpEx Total', isMktg:true,       data:nonMktgArr,   cls:'tr-nonmktg-total'},
     {sec:'Marketing'},
     {lbl:'Blended CPC',         p1v:'cpc',         data:RAW.cpc,       fmt:fc, cls:'tr-mktg2'},
     {lbl:'Marketing Spend',     p1v:'marketing',   data:a.marketing,   cls:'tr-mktg2'},
