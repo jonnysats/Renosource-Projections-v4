@@ -153,6 +153,14 @@
     .td-proj { background:rgba(56,189,248,0.05) !important; }
     .proj-badge { display:inline-block; font-size:8px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; background:rgba(56,189,248,0.15); color:var(--blue); border:1px solid rgba(56,189,248,0.4); border-radius:4px; padding:1px 5px; margin-left:5px; vertical-align:middle; }
     .actual-badge { display:inline-block; font-size:8px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; background:rgba(253,105,5,0.2); color:var(--orange); border:1px solid rgba(253,105,5,0.4); border-radius:4px; padding:1px 5px; margin-left:5px; vertical-align:middle; }
+    /* Collapsed proj columns */
+    .th-proj-collapsed { background:rgba(56,189,248,0.08) !important; color:var(--blue) !important; cursor:pointer; user-select:none; white-space:nowrap; }
+    .th-proj-collapsed:hover { background:rgba(56,189,248,0.18) !important; }
+    .col-proj { transition: none; }
+    .col-proj.hidden { display:none; }
+    .proj-expand-btn { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; letter-spacing:0.5px; }
+    .proj-expand-btn .chevron { font-size:8px; transition:transform 0.2s; display:inline-block; }
+    .proj-expand-btn.expanded .chevron { transform:rotate(180deg); }
     .pnl-disclaimer { font-size:10.5px; color:var(--muted); line-height:1.6; padding:12px 20px 14px; border-top:1px solid var(--border); background:rgba(11,31,24,0.4); }
     .pnl-disclaimer strong { color:var(--text); }
 
@@ -827,17 +835,30 @@ function updateUnitEcon() {
 /* ═══════════════════════════════════════════════════════
    P&L TABLE
 ═══════════════════════════════════════════════════════ */
+let projColsExpanded = false;
+
+function toggleProjCols() {
+  projColsExpanded = !projColsExpanded;
+  // Show/hide all .col-proj cells
+  document.querySelectorAll('.col-proj').forEach(el => el.classList.toggle('hidden', !projColsExpanded));
+  // Update the collapsed header cell
+  const btn = document.querySelector('.proj-expand-btn');
+  if (btn) {
+    btn.classList.toggle('expanded', projColsExpanded);
+    btn.querySelector('.label-txt').textContent = projColsExpanded ? 'Original Proj' : 'Proj';
+  }
+}
+
 function buildPnlTable() {
   const a = computeActive();
   const v = VERSIONS[activeVersionKey];
   const tbl = document.getElementById('pnl-tbl');
   const n = v.actualsCount; // 0=all proj, 1=M1 actual, 2=M1+M2 actual
+  const hasProjCols = !!(v.p1 || v.p2);
+  const projCount = (v.p1?1:0) + (v.p2?1:0);
 
-  // Build column headers dynamically based on version
-  const hdrs = ['Metric'];
-  if (v.p1) hdrs.push('M1 Proj');
-  if (v.p2) hdrs.push('M2 Proj');
-  for (let i=1; i<=24; i++) hdrs.push(`M${i}`);
+  // Reset expand state when rebuilding (e.g. version switch)
+  projColsExpanded = false;
 
   const f = val => {
     if(typeof val !== 'number') return val;
@@ -865,7 +886,7 @@ function buildPnlTable() {
     {lbl:'Rent',                p1v:'rent',        data:RAW.rent},
     {lbl:'CC & Variable',       p1v:'ccVar',       data:RAW.ccVar},
     {lbl:'Other',               p1v:'other',       data:RAW.other},
-    {lbl:'Non-Mktg OpEx Total', p1nMktg:p1NonMktg, p2nMktg:p2NonMktg, data:nonMktgArr},
+    {lbl:'Non-Mktg OpEx Total', isMktg:true,       data:nonMktgArr},
     {sec:'Marketing'},
     {lbl:'Blended CPC',         p1v:'cpc',         data:RAW.cpc,       fmt:fc, cls:'tr-mktg2'},
     {lbl:'Marketing Spend',     p1v:'marketing',   data:a.marketing,   cls:'tr-mktg2'},
@@ -873,33 +894,52 @@ function buildPnlTable() {
     {lbl:'EBITDA',              p1v:'net',         data:a.net,         cls:'tr-net'},
   ];
 
-  const totalCols = hdrs.length;
+  // Total cols = 1 (metric) + 1 (collapsed proj group, if any) + 24 (data)
+  const totalCols = 1 + (hasProjCols ? 1 : 0) + 24;
+
   let html = '<thead><tr>';
-  hdrs.forEach((h,i) => {
-    // Proj cols come right after Metric
-    const projOffset = 1;
-    const projCount  = (v.p1?1:0) + (v.p2?1:0);
-    if (i >= projOffset && i < projOffset+projCount) {
-      html += `<th class="th-proj">${h}<span class="proj-badge">Proj</span></th>`;
-    } else if (i > projOffset+projCount-1 && i <= projOffset+projCount-1+n) {
-      // actual columns
-      html += `<th class="th-actual">${h}<span class="actual-badge">Actual</span></th>`;
-    } else {
-      html += `<th>${h}</th>`;
-    }
-  });
+  // Metric col
+  html += '<th style="min-width:220px;">Metric</th>';
+  // Collapsed proj group header (single cell, clickable, expands)
+  if (hasProjCols) {
+    const projLabels = [];
+    if (v.p1) projLabels.push('M1 Proj');
+    if (v.p2) projLabels.push('M2 Proj');
+    html += `<th class="th-proj-collapsed" onclick="toggleProjCols()" title="Click to expand original projections">`;
+    html += `<span class="proj-expand-btn"><span class="chevron">▶</span><span class="label-txt">Proj</span></span>`;
+    html += `</th>`;
+    // Hidden expanded cols
+    projLabels.forEach(lbl => {
+      html += `<th class="th-proj col-proj hidden">${lbl}<span class="proj-badge">Proj</span></th>`;
+    });
+  }
+  // Data cols (M1-M24)
+  for (let i=1; i<=24; i++) {
+    if (i <= n) html += `<th class="th-actual">M${i}<span class="actual-badge">Actual</span></th>`;
+    else        html += `<th>M${i}</th>`;
+  }
   html += '</tr></thead><tbody>';
 
   rows.forEach(row => {
-    if(row.sec) {
+    if (row.sec) {
       html += `<tr class="tr-section"><td colspan="${totalCols}">${row.sec}</td></tr>`;
       return;
     }
     const fmt = row.fmt || f;
     html += `<tr class="${row.cls||''}"><td>${row.lbl}</td>`;
-    // Proj cols
-    if (v.p1) html += `<td class="td-proj">${fmt(row.p1nMktg !== undefined ? p1NonMktg : (v.p1[row.p1v]??0))}</td>`;
-    if (v.p2) html += `<td class="td-proj">${fmt(row.p1nMktg !== undefined ? p2NonMktg : (v.p2[row.p1v]??0))}</td>`;
+    // Collapsed proj toggle cell (empty placeholder — the real data is in the expanded hidden cols)
+    if (hasProjCols) {
+      html += `<td class="td-proj" style="font-size:10px;color:var(--muted);text-align:center;cursor:pointer;" onclick="toggleProjCols()">···</td>`;
+      // Hidden expanded proj data cells
+      if (v.p1) {
+        const val = row.isMktg ? p1NonMktg : (v.p1[row.p1v] ?? 0);
+        html += `<td class="td-proj col-proj hidden">${fmt(val)}</td>`;
+      }
+      if (v.p2) {
+        const val = row.isMktg ? p2NonMktg : (v.p2[row.p1v] ?? 0);
+        html += `<td class="td-proj col-proj hidden">${fmt(val)}</td>`;
+      }
+    }
     // Data cols
     row.data.forEach((val,i) => {
       const isActual = i < n;
